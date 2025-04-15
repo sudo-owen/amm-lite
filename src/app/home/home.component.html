@@ -1,0 +1,88 @@
+<div class="min-h-screen bg-black flex items-center justify-center px-4 py-8">
+  <div class="max-w-md w-full bg-zinc-900 rounded-xl shadow-lg overflow-hidden md:max-w-2xl p-6 border border-zinc-800">
+    <div class="flex flex-col items-center justify-center space-y-4">
+      @if (!walletService.isConnected()) {
+        <button
+          (click)="connectWallet()"
+          class="w-full bg-[var(--dark-sudo-purple)] hover:bg-[var(--sudo-purple-o50)] text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow-lg cursor-pointer">
+          Connect Wallet
+        </button>
+      } @else {
+        <div class="w-full bg-zinc-800 rounded-lg p-4 mb-4 border border-zinc-700">
+          <p class="text-sm text-zinc-400">Connected Wallet</p>
+          <p class="text-zinc-200 font-mono break-all">{{ walletService.walletAddress() }}</p>
+          <p class="text-sm text-zinc-400 mt-3">Balance</p>
+          <p class="text-zinc-200 font-bold">{{ walletService.balance() }} ETH</p>
+        </div>
+
+        <!-- NFT Listing Form -->
+        <div class="w-full bg-zinc-800 rounded-lg p-4 mb-4 border border-zinc-700">
+          <h2 class="text-lg text-white font-bold mb-4">Create NFT Listing</h2>
+
+          <div class="mb-4">
+            <label class="block text-sm text-zinc-400 mb-1">NFT Contract Address</label>
+            <input
+              type="text"
+              [(ngModel)]="nftContractAddress"
+              class="w-full bg-zinc-900 text-white border border-zinc-700 rounded-lg p-2 focus:outline-none focus:border-[var(--sudo-purple)] placeholder:[color:var(--dark-sudo-purple)]"
+              placeholder="0x..."
+            >
+          </div>
+
+          <div class="mb-4">
+            <label class="block text-sm text-zinc-400 mb-1">NFT IDs (comma separated)</label>
+            <textarea
+              [(ngModel)]="nftIds"
+              class="w-full bg-zinc-900 text-white border border-zinc-700 rounded-lg p-2 focus:outline-none focus:border-[var(--sudo-purple)] h-20 placeholder:[color:var(--dark-sudo-purple)]"
+              placeholder="1, 2, 3, ..."
+            ></textarea>
+          </div>
+
+          <div class="mb-4">
+            <label class="block text-sm text-zinc-400 mb-1">Token Contract Address (leave empty for native token)</label>
+            <input
+              type="text"
+              [(ngModel)]="tokenContractAddress"
+              class="w-full bg-zinc-900 text-white border border-zinc-700 rounded-lg p-2 focus:outline-none focus:border-[var(--sudo-purple)] placeholder:[color:var(--dark-sudo-purple)]"
+              placeholder="0x... (optional)"
+            >
+          </div>
+
+          <div class="mb-4">
+            <label class="block text-sm text-zinc-400 mb-1">Starting Price</label>
+            <input
+              type="text"
+              [(ngModel)]="startingPrice"
+              class="w-full bg-zinc-900 text-white border border-zinc-700 rounded-lg p-2 focus:outline-none focus:border-[var(--sudo-purple)] placeholder:[color:var(--dark-sudo-purple)]"
+              placeholder="0.01"
+            >
+          </div>
+
+          @if (errorMessage()) {
+            <div class="mb-4 p-3 bg-red-900/50 text-red-200 rounded-lg border border-red-700">
+              {{ errorMessage() }}
+            </div>
+          }
+
+          @if (isCheckingApproval()) {
+            <div class="mb-4 p-3 bg-blue-900/50 text-blue-200 rounded-lg border border-blue-700">
+              Checking NFT approval status...
+            </div>
+          }
+
+          @if (isApproved()) {
+            <div class="mb-4 p-3 bg-green-900/50 text-green-200 rounded-lg border border-green-700">
+              NFT contract is approved for trading
+            </div>
+          }
+
+          <button
+            (click)="createListing()"
+            class="w-full bg-[var(--dark-sudo-purple)] hover:bg-[var(--sudo-purple-o50)] text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow-lg mt-2 cursor-pointer">
+            Create Listing
+          </button>
+        </div>
+      }
+    </div>
+  </div>
+</div>

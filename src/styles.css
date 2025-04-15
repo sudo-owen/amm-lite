@@ -1,1 +1,43 @@
-/* You can add global styles to this file, and also import other style files */
+@import "tailwindcss";
+
+:root {
+    --dark-gray: rgb(51, 51, 51);
+  --darker-gray: rgb(40, 40, 40);
+  --gray: rgb(100, 100, 100);
+  --normal-gray: rgb(100, 100, 100);
+  --light-gray: rgb(150, 150, 150);
+  --light-black: rgb(20, 20, 20);
+  --lighter-black: rgb(34, 34, 34);
+  --default-gray: #bfbfbf;
+  --sudo-purple: #b9b9ff;
+  --sudo-purple-light: rgba(185, 185, 255, 0.16);
+  --sudo-purple-o50: rgba(185, 185, 255, 0.5);
+  --sudo-green: #00dcdc;
+  --sudo-secondary-light: #ffffff14;
+  --sudo-secondary: #222222;
+  --sudo-secondary-dark: #1a1a1a;
+  --dark-sudo-purple: #8181cf;
+  --dark-sudo-violet: #7c93f8;
+
+  /*shades*/
+  --sudo-dark-shade-0: #0d0d12;
+  --sudo-dark-shade-4: #14141b;
+  --sudo-dark-shade-4-tp: rgba(20, 20, 27, 0.6);
+  --sudo-dark-shade-8: #1b1b25;
+  --sudo-dark-shade-16: #2d2d3e;
+  --sudo-dark-shade-24: #36364b;
+
+  --sudo-dark-shade-50: #9292a5;
+  --sudo-dark-shade-70: #b7b7c9;
+  --sudo-dark-shade-80: #cacadb;
+  --sudo-dark-shade-90: #dcdced;
+  --sudo-dark-shade-100: #eeeeff;
+  --parallel-green: #e0f24b;
+  --parallel-green-dark: #83875e;
+
+  /*for new designs*/
+  --sudo-blue: #9bcdff;
+  --sudo-blue-light: rgba(155, 205, 255, 0.16);
+  --sudo-pink: #ff9bff;
+  --sudo-pink-light: rgba(255, 155, 255, 0.16);
+}
