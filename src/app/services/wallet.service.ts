@@ -34,6 +34,9 @@ export class WalletService {
           enabled: false,
         }
       },
+      connect: {
+        autoConnectLastWallet: true, // Automatically connect the last wallet used
+      },
       theme: 'dark'
     });
   }
