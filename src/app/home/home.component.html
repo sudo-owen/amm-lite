@@ -11,8 +11,10 @@
         <div class="w-full bg-zinc-800 rounded-lg p-4 mb-4 border border-zinc-700">
           <p class="text-sm text-zinc-400">Connected Wallet</p>
           <p class="text-zinc-200 font-mono break-all">{{ walletService.walletAddress() }}</p>
+          <p class="text-sm text-zinc-400 mt-3">Network</p>
+          <p class="text-zinc-200 font-bold">{{ currentChainId === 'KAMI_TEST' ? 'Kami Test' : 'Zaar' }}</p>
           <p class="text-sm text-zinc-400 mt-3">Balance</p>
-          <p class="text-zinc-200 font-bold">{{ walletService.balance() }} ETH</p>
+          <p class="text-zinc-200 font-bold">{{ walletService.balance() }} {{ currentChainId === 'KAMI_TEST' ? 'ETH' : 'Init' }}</p>
         </div>
 
         <!-- NFT Listing Form -->

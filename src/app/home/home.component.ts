@@ -24,6 +24,22 @@ export class HomeComponent {
   tokenContractAddress: string = ''; // Default to empty for native token
   startingPrice: string = '';
 
+  // Current chain ID
+  get currentChainId(): string {
+    const chain = this.walletService.getCurrentChain();
+    if (!chain) return CHAIN_ID.KAMI_TEST; // Default to KAMI_TEST if no chain is available
+
+    // Map the chain ID to our CHAIN_ID constants
+    switch (chain.id) {
+      case parseInt('0x18623A6A54F3F', 16): // Kami Test chain ID
+        return CHAIN_ID.KAMI_TEST;
+      case parseInt('0x4be439dcd8b3f', 16): // Zaar chain ID
+        return CHAIN_ID.ZAAR;
+      default:
+        return CHAIN_ID.KAMI_TEST; // Default to KAMI_TEST for unknown chains
+    }
+  }
+
   // UI state
   isApproved = signal<boolean>(false);
   isCheckingApproval = signal<boolean>(false);
@@ -128,8 +144,8 @@ export class HomeComponent {
         throw new Error('Wallet not connected');
       }
 
-      // Get the Pair Factory address from our constants
-      const pairFactoryAddress = CONTRACT_ADDRESSES[CHAIN_ID.KAMI_TEST].PAIR_FACTORY_V2_HOOKS;
+      // Get the Pair Factory address from our constants for the current chain
+      const pairFactoryAddress = CONTRACT_ADDRESSES[this.currentChainId].PAIR_FACTORY_V2_HOOKS;
 
       // Call isApprovedForAll on the NFT contract
       const isApproved = await publicClient.readContract({
@@ -160,8 +176,8 @@ export class HomeComponent {
 
     const walletAddress = this.walletService.walletAddress();
 
-    // Get the Pair Factory address from our constants
-    const pairFactoryAddress = CONTRACT_ADDRESSES[CHAIN_ID.KAMI_TEST].PAIR_FACTORY_V2_HOOKS;
+    // Get the Pair Factory address from our constants for the current chain
+    const pairFactoryAddress = CONTRACT_ADDRESSES[this.currentChainId].PAIR_FACTORY_V2_HOOKS;
 
     // Call setApprovalForAll on the NFT contract
     // Get the current chain
@@ -327,8 +343,8 @@ export class HomeComponent {
         throw new Error('Wallet not connected');
       }
 
-      // Get the Pair Factory address from our constants
-      const pairFactoryAddress = CONTRACT_ADDRESSES[CHAIN_ID.KAMI_TEST].PAIR_FACTORY_V2_HOOKS;
+      // Get the Pair Factory address from our constants for the current chain
+      const pairFactoryAddress = CONTRACT_ADDRESSES[this.currentChainId].PAIR_FACTORY_V2_HOOKS;
 
       // Call allowance on the ERC20 contract
       const allowance = await publicClient.readContract({
@@ -370,8 +386,8 @@ export class HomeComponent {
       throw new Error('Wallet not connected');
     }
 
-    // Get the Pair Factory address from our constants
-    const pairFactoryAddress = CONTRACT_ADDRESSES[CHAIN_ID.KAMI_TEST].PAIR_FACTORY_V2_HOOKS;
+    // Get the Pair Factory address from our constants for the current chain
+    const pairFactoryAddress = CONTRACT_ADDRESSES[this.currentChainId].PAIR_FACTORY_V2_HOOKS;
 
     // Call approve on the ERC20 contract with a very large number (max uint256)
     const maxUint256 = 2n ** 256n - 1n;
@@ -395,28 +411,15 @@ export class HomeComponent {
       throw new Error('No wallet client available');
     }
     const walletAddress = this.walletService.walletAddress();
-    const pairFactoryAddress = CONTRACT_ADDRESSES[CHAIN_ID.KAMI_TEST].PAIR_FACTORY_V2_HOOKS;
+    const pairFactoryAddress = CONTRACT_ADDRESSES[this.currentChainId].PAIR_FACTORY_V2_HOOKS;
     if (this.tokenContractAddress == '') {
       await walletClient.writeContract({
         address: pairFactoryAddress as `0x${string}`,
         abi: FactoryABI,
         functionName: 'createPairERC721ETH',
-        /*
-        IERC721 _nft,
-          ICurve _bondingCurve,
-          address payable _assetRecipient,
-          LSSVMPair.PoolType _poolType,
-          uint128 _delta,
-          uint96 _fee,
-          uint128 _spotPrice,
-          address _propertyChecker,
-          uint256[] calldata _initialNFTIDs,
-          address _hookAddress,
-          address _referralAddress
-        */
         args: [
           this.nftContractAddress as `0x${string}`,
-          CONTRACT_ADDRESSES[CHAIN_ID.KAMI_TEST].LINEAR_CURVE_V2 as `0x${string}`,
+          CONTRACT_ADDRESSES[this.currentChainId].LINEAR_CURVE_V2 as `0x${string}`,
           walletAddress as `0x${string}`,
           1, // PoolType: TOKEN/NFT/TRADE
           0n, // Delta
@@ -424,7 +427,7 @@ export class HomeComponent {
           BigInt(this.startingPrice), // Spot price
           '0x0000000000000000000000000000000000000000' as `0x${string}`, // Property checker
           this.nftIds.split(',').map(id => BigInt(id.trim())), // Initial NFT IDs
-          CONTRACT_ADDRESSES[CHAIN_ID.KAMI_TEST].LISTING_BOOK as `0x${string}`, // Hook address
+          CONTRACT_ADDRESSES[this.currentChainId].LISTING_BOOK as `0x${string}`, // Hook address
           '0x0000000000000000000000000000000000000000' as `0x${string}`, // Referral address
         ],
         chain: this.walletService.getCurrentChain(),
@@ -436,28 +439,11 @@ export class HomeComponent {
         address: pairFactoryAddress as `0x${string}`,
         abi: FactoryABI,
         functionName: 'createPairERC721ERC20',
-        /*
-        struct CreateERC721ERC20PairParams {
-          ERC20 token;
-          IERC721 nft;
-          ICurve bondingCurve;
-          address payable assetRecipient;
-          LSSVMPair.PoolType poolType;
-          uint128 delta;
-          uint96 fee;
-          uint128 spotPrice;
-          address propertyChecker;
-          uint256[] initialNFTIDs;
-          uint256 initialTokenBalance;
-          address hookAddress;
-          address referralAddress;
-        }
-        */
         args: [
           {
             token: this.tokenContractAddress as `0x${string}`,
             nft: this.nftContractAddress as `0x${string}`,
-            bondingCurve: CONTRACT_ADDRESSES[CHAIN_ID.KAMI_TEST].LINEAR_CURVE_V2 as `0x${string}`,
+            bondingCurve: CONTRACT_ADDRESSES[this.currentChainId].LINEAR_CURVE_V2 as `0x${string}`,
             assetRecipient: walletAddress as `0x${string}`,
             poolType: 1, // PoolType: TOKEN/NFT/TRADE
             delta: 0n, // Delta
@@ -466,7 +452,7 @@ export class HomeComponent {
             propertyChecker: '0x0000000000000000000000000000000000000000' as `0x${string}`, // Property checker
             initialNFTIDs: this.nftIds.split(',').map(id => BigInt(id.trim())), // Initial NFT IDs
             initialTokenBalance: 0n, // Initial token balance
-            hookAddress: CONTRACT_ADDRESSES[CHAIN_ID.KAMI_TEST].LISTING_BOOK as `0x${string}`, // Hook address
+            hookAddress: CONTRACT_ADDRESSES[this.currentChainId].LISTING_BOOK as `0x${string}`, // Hook address
             referralAddress: '0x0000000000000000000000000000000000000000' as `0x${string}`, // Referral address
           }
         ],

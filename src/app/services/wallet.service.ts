@@ -25,6 +25,12 @@ export class WalletService {
           label: 'Kami Test',
           rpcUrl: 'https://jsonrpc-yominet-1.anvil.asia-southeast.initia.xyz/'
         },
+        {
+          id: '0x4be439dcd8b3f',
+          token: 'Init',
+          label: 'Zaar',
+          rpcUrl: 'https://jsonrpc-zaar-mainnet-1.anvil.asia-southeast.initia.xyz/'
+        }
       ],
       accountCenter: {
         desktop: {
