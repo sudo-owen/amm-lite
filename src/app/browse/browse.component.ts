@@ -21,6 +21,7 @@ interface ListingData {
   pairAddress: string;
   nftIds: readonly bigint[];
   price: bigint; // Price to buy an NFT (inputAmount from getBuyNFTQuote)
+  isBuying?: boolean; // Flag to track if a buy transaction is in progress
 }
 
 @Component({
@@ -334,14 +335,16 @@ export class BrowseComponent implements OnInit {
           return {
             pairAddress: pairAddress,
             nftIds: nftIds,
-            price: inputAmount
+            price: inputAmount,
+            isBuying: false
           };
         } catch (error) {
           console.error(`Error decoding data for pair ${pairAddress}:`, error);
           return {
             pairAddress: pairAddress,
             nftIds: [],
-            price: 0n
+            price: 0n,
+            isBuying: false
           };
         }
       });
@@ -397,5 +400,87 @@ export class BrowseComponent implements OnInit {
     if (!chain) return 'ETH'; // Default to ETH if no chain is available
 
     return chain.nativeCurrency.symbol;
+  }
+
+  /**
+   * Buy the first NFT from a listing
+   * @param listing The listing data containing the pair address, NFT IDs, and price
+   */
+  async buyNFT(listing: ListingData): Promise<void> {
+    try {
+      // Check if there are any NFTs available
+      if (!listing.nftIds.length) {
+        console.error('No NFTs available in this listing');
+        return;
+      }
+
+      // Get the wallet client
+      const walletClient = this.walletService.getWalletClient();
+      if (!walletClient) {
+        console.error('No wallet client available');
+        return;
+      }
+
+      // Get the wallet address
+      const walletAddress = this.walletService.walletAddress();
+      if (!walletAddress) {
+        console.error('No wallet address available');
+        return;
+      }
+
+      // Set the listing as in buying state
+      const updatedListings = this.listingsData().map(l =>
+        l.pairAddress === listing.pairAddress ? { ...l, isBuying: true } : l
+      );
+      this.listingsData.set(updatedListings);
+
+      console.log('Buying NFT:', {
+        pairAddress: listing.pairAddress,
+        nftId: listing.nftIds[0],
+        price: listing.price,
+        buyer: walletAddress
+      });
+
+      // Call swapTokenForSpecificNFTs on the pair contract
+      const hash = await walletClient.writeContract({
+        address: listing.pairAddress as `0x${string}`,
+        abi: Pair721,
+        functionName: 'swapTokenForSpecificNFTs',
+        args: [
+          [listing.nftIds[0]], // Array with the first NFT ID
+          listing.price, // maxExpectedTokenInput (the price)
+          walletAddress as `0x${string}`, // nftRecipient (the caller)
+          false, // isRouter
+          '0x0000000000000000000000000000000000000000' as `0x${string}` // routerCaller
+        ],
+        value: listing.price, // Send the price as the transaction value
+        chain: this.walletService.getCurrentChain(),
+        account: walletAddress as `0x${string}`
+      });
+
+      console.log('Buy transaction hash:', hash);
+
+      // Wait for the transaction to be mined
+      const publicClient = this.walletService.getPublicClient();
+      if (publicClient) {
+        await publicClient.waitForTransactionReceipt({ hash });
+      }
+
+      // Refresh the listings to update the NFT IDs
+      if (this.address) {
+        await this.fetchERC721Listings(this.address);
+      }
+
+      // Update wallet balance
+      await this.walletService.fetchBalance();
+    } catch (error) {
+      console.error('Error buying NFT:', error);
+    } finally {
+      // Reset the buying state regardless of success or failure
+      const updatedListings = this.listingsData().map(l =>
+        l.pairAddress === listing.pairAddress ? { ...l, isBuying: false } : l
+      );
+      this.listingsData.set(updatedListings);
+    }
   }
 }
