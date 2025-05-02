@@ -2,7 +2,7 @@ import { Injectable, signal } from '@angular/core';
 import init from '@web3-onboard/core';
 import injectedModule from '@web3-onboard/injected-wallets';
 import { Observable, of } from 'rxjs';
-import { createPublicClient, createWalletClient, http, formatEther, PublicClient, WalletClient, Chain, custom, encodeFunctionData } from 'viem';
+import { createPublicClient, createWalletClient, http, formatEther, PublicClient, WalletClient, Chain, custom } from 'viem';
 
 @Injectable({
   providedIn: 'root'
@@ -22,7 +22,7 @@ export class WalletService {
         {
           id: '0x18623A6A54F3F',
           token: 'ETH',
-          label: 'Kami Test',
+          label: 'Yominet',
           rpcUrl: 'https://jsonrpc-yominet-1.anvil.asia-southeast.initia.xyz/'
         },
         {
@@ -41,7 +41,7 @@ export class WalletService {
         }
       },
       connect: {
-        autoConnectLastWallet: true, // Automatically connect the last wallet used
+        autoConnectLastWallet: true,
       },
       theme: 'dark'
     });

@@ -4,9 +4,16 @@ import { FormsModule } from '@angular/forms';
 import { WalletService } from '../services/wallet.service';
 import { ERC721 } from '../../abi/ERC721';
 import { ERC20 } from '../../abi/ERC20';
-import { CHAIN_ID, CONTRACT_ADDRESSES } from '../services/address';
+import { CHAIN_ID, CONTRACT_ADDRESSES, ChainIdType } from '../services/address';
 import { FactoryABI } from '../../abi/Factory';
-import { formatUnits } from 'viem';
+import { Multicall } from '../../abi/Multicall';
+import { formatUnits, encodeFunctionData, decodeFunctionResult } from 'viem';
+
+// Define the type for Multicall calls
+type MulticallCall = {
+  target: `0x${string}`;
+  callData: `0x${string}`;
+};
 
 @Component({
   selector: 'app-home',
@@ -25,18 +32,18 @@ export class HomeComponent {
   startingPrice: string = '';
 
   // Current chain ID
-  get currentChainId(): string {
+  get currentChainId(): ChainIdType {
     const chain = this.walletService.getCurrentChain();
-    if (!chain) return CHAIN_ID.KAMI_TEST; // Default to KAMI_TEST if no chain is available
+    if (!chain) return CHAIN_ID.YOMINET; // Default to YOMINET if no chain is available
 
     // Map the chain ID to our CHAIN_ID constants
     switch (chain.id) {
-      case parseInt('0x18623A6A54F3F', 16): // Kami Test chain ID
-        return CHAIN_ID.KAMI_TEST;
+      case parseInt('0x18623A6A54F3F', 16): // Yominet chain ID
+        return CHAIN_ID.YOMINET;
       case parseInt('0x4be439dcd8b3f', 16): // Zaar chain ID
         return CHAIN_ID.ZAAR;
       default:
-        return CHAIN_ID.KAMI_TEST; // Default to KAMI_TEST for unknown chains
+        return CHAIN_ID.YOMINET; // Default to YOMINET for unknown chains
     }
   }
 
@@ -147,12 +154,40 @@ export class HomeComponent {
       // Get the Pair Factory address from our constants for the current chain
       const pairFactoryAddress = CONTRACT_ADDRESSES[this.currentChainId].PAIR_FACTORY_V2_HOOKS;
 
-      // Call isApprovedForAll on the NFT contract
-      const isApproved = await publicClient.readContract({
-        address: this.nftContractAddress as `0x${string}`,
+      // Get the Multicall contract address for the current chain
+      const multicallAddress = CONTRACT_ADDRESSES[this.currentChainId].MULTICALL as `0x${string}`;
+
+      // Prepare the call for Multicall
+      const isApprovedCallData = encodeFunctionData({
         abi: ERC721,
         functionName: 'isApprovedForAll',
         args: [walletAddress as `0x${string}`, pairFactoryAddress as `0x${string}`]
+      });
+
+      // Create the calls array for Multicall
+      const calls: MulticallCall[] = [
+        {
+          target: this.nftContractAddress as `0x${string}`,
+          callData: isApprovedCallData
+        }
+      ];
+
+      // Execute the Multicall
+      const result = await publicClient.readContract({
+        address: multicallAddress,
+        abi: Multicall,
+        functionName: 'aggregate' as any,
+        args: [calls as any]
+      }) as unknown;
+
+      // Extract the return data from the result
+      const [, returnData] = result as [bigint, `0x${string}`[]];
+
+      // Decode the result
+      const isApproved = decodeFunctionResult({
+        abi: ERC721,
+        functionName: 'isApprovedForAll',
+        data: returnData[0]
       });
 
       this.isApproved.set(!!isApproved);
@@ -219,28 +254,73 @@ export class HomeComponent {
         throw new Error('Wallet not connected');
       }
 
-      // Get NFT collection name
-      const name = await publicClient.readContract({
-        address: this.nftContractAddress as `0x${string}`,
+      // Get the Multicall contract address for the current chain
+      const multicallAddress = CONTRACT_ADDRESSES[this.currentChainId].MULTICALL as `0x${string}`;
+
+      // Prepare the calls for Multicall
+      const nameCallData = encodeFunctionData({
         abi: ERC721,
         functionName: 'name'
       });
-      this.nftName.set(name as string);
 
-      // Get NFT collection symbol
-      const symbol = await publicClient.readContract({
-        address: this.nftContractAddress as `0x${string}`,
+      const symbolCallData = encodeFunctionData({
         abi: ERC721,
         functionName: 'symbol'
       });
-      this.nftSymbol.set(symbol as string);
 
-      // Get user's NFT balance
-      const balance = await publicClient.readContract({
-        address: this.nftContractAddress as `0x${string}`,
+      const balanceOfCallData = encodeFunctionData({
         abi: ERC721,
         functionName: 'balanceOf',
         args: [walletAddress as `0x${string}`]
+      });
+
+      // Create the calls array for Multicall
+      const calls: MulticallCall[] = [
+        {
+          target: this.nftContractAddress as `0x${string}`,
+          callData: nameCallData
+        },
+        {
+          target: this.nftContractAddress as `0x${string}`,
+          callData: symbolCallData
+        },
+        {
+          target: this.nftContractAddress as `0x${string}`,
+          callData: balanceOfCallData
+        }
+      ];
+
+      // Execute the Multicall
+      // First cast to unknown, then to the expected return type to avoid TypeScript errors
+      const result = await publicClient.readContract({
+        address: multicallAddress,
+        abi: Multicall,
+        functionName: 'aggregate' as any,
+        args: [calls as any]
+      }) as unknown;
+
+      // Extract the return data from the result
+      const [, returnData] = result as [bigint, `0x${string}`[]];
+
+      // Decode the results
+      const name = decodeFunctionResult({
+        abi: ERC721,
+        functionName: 'name',
+        data: returnData[0]
+      });
+      this.nftName.set(name as string);
+
+      const symbol = decodeFunctionResult({
+        abi: ERC721,
+        functionName: 'symbol',
+        data: returnData[1]
+      });
+      this.nftSymbol.set(symbol as string);
+
+      const balance = decodeFunctionResult({
+        abi: ERC721,
+        functionName: 'balanceOf',
+        data: returnData[2]
       });
       this.nftBalance.set(Number(balance));
 
@@ -283,38 +363,90 @@ export class HomeComponent {
         throw new Error('Wallet not connected');
       }
 
-      // Get token name
-      const name = await publicClient.readContract({
-        address: this.tokenContractAddress as `0x${string}`,
+      // Get the Multicall contract address for the current chain
+      const multicallAddress = CONTRACT_ADDRESSES[this.currentChainId].MULTICALL as `0x${string}`;
+
+      // Prepare the calls for Multicall
+      const nameCallData = encodeFunctionData({
         abi: ERC20,
         functionName: 'name'
       });
-      this.tokenName.set(name as string);
 
-      // Get token symbol
-      const symbol = await publicClient.readContract({
-        address: this.tokenContractAddress as `0x${string}`,
+      const symbolCallData = encodeFunctionData({
         abi: ERC20,
         functionName: 'symbol'
       });
-      this.tokenSymbol.set(symbol as string);
 
-      // Get token decimals
-      const decimals = await publicClient.readContract({
-        address: this.tokenContractAddress as `0x${string}`,
+      const decimalsCallData = encodeFunctionData({
         abi: ERC20,
         functionName: 'decimals'
       });
-      this.tokenDecimals.set(Number(decimals));
 
-      // Get user's token balance
-      const balance = await publicClient.readContract({
-        address: this.tokenContractAddress as `0x${string}`,
+      const balanceOfCallData = encodeFunctionData({
         abi: ERC20,
         functionName: 'balanceOf',
         args: [walletAddress as `0x${string}`]
       });
-      this.tokenBalance.set(formatUnits(balance as bigint, this.tokenDecimals()));
+
+      // Create the calls array for Multicall
+      const calls: MulticallCall[] = [
+        {
+          target: this.tokenContractAddress as `0x${string}`,
+          callData: nameCallData
+        },
+        {
+          target: this.tokenContractAddress as `0x${string}`,
+          callData: symbolCallData
+        },
+        {
+          target: this.tokenContractAddress as `0x${string}`,
+          callData: decimalsCallData
+        },
+        {
+          target: this.tokenContractAddress as `0x${string}`,
+          callData: balanceOfCallData
+        }
+      ];
+
+      // Execute the Multicall
+      const result = await publicClient.readContract({
+        address: multicallAddress,
+        abi: Multicall,
+        functionName: 'aggregate' as any,
+        args: [calls as any]
+      }) as unknown;
+
+      // Extract the return data from the result
+      const [, returnData] = result as [bigint, `0x${string}`[]];
+
+      // Decode the results
+      const name = decodeFunctionResult({
+        abi: ERC20,
+        functionName: 'name',
+        data: returnData[0]
+      });
+      this.tokenName.set(name as string);
+
+      const symbol = decodeFunctionResult({
+        abi: ERC20,
+        functionName: 'symbol',
+        data: returnData[1]
+      });
+      this.tokenSymbol.set(symbol as string);
+
+      const decimals = decodeFunctionResult({
+        abi: ERC20,
+        functionName: 'decimals',
+        data: returnData[2]
+      });
+      this.tokenDecimals.set(Number(decimals));
+
+      const balance = decodeFunctionResult({
+        abi: ERC20,
+        functionName: 'balanceOf',
+        data: returnData[3]
+      });
+      this.tokenBalance.set(formatUnits(balance as bigint, Number(decimals)));
 
       // Check token approval
       await this.checkERC20Approval();
@@ -346,12 +478,40 @@ export class HomeComponent {
       // Get the Pair Factory address from our constants for the current chain
       const pairFactoryAddress = CONTRACT_ADDRESSES[this.currentChainId].PAIR_FACTORY_V2_HOOKS;
 
-      // Call allowance on the ERC20 contract
-      const allowance = await publicClient.readContract({
-        address: this.tokenContractAddress as `0x${string}`,
+      // Get the Multicall contract address for the current chain
+      const multicallAddress = CONTRACT_ADDRESSES[this.currentChainId].MULTICALL as `0x${string}`;
+
+      // Prepare the call for Multicall
+      const allowanceCallData = encodeFunctionData({
         abi: ERC20,
         functionName: 'allowance',
         args: [walletAddress as `0x${string}`, pairFactoryAddress as `0x${string}`]
+      });
+
+      // Create the calls array for Multicall
+      const calls: MulticallCall[] = [
+        {
+          target: this.tokenContractAddress as `0x${string}`,
+          callData: allowanceCallData
+        }
+      ];
+
+      // Execute the Multicall
+      const result = await publicClient.readContract({
+        address: multicallAddress,
+        abi: Multicall,
+        functionName: 'aggregate' as any,
+        args: [calls as any]
+      }) as unknown;
+
+      // Extract the return data from the result
+      const [, returnData] = result as [bigint, `0x${string}`[]];
+
+      // Decode the result
+      const allowance = decodeFunctionResult({
+        abi: ERC20,
+        functionName: 'allowance',
+        data: returnData[0]
       });
 
       // Store the raw allowance value
