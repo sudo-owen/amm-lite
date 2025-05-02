@@ -7,7 +7,8 @@ import { CHAIN_ID, ChainIdType, CONTRACT_ADDRESSES } from '../services/address';
 import { ListingBook } from '../../abi/ListingBook';
 import { Pair721 } from '../../abi/Pair721';
 import { Multicall } from '../../abi/Multicall';
-import { encodeFunctionData, decodeFunctionResult } from 'viem';
+import { ERC721 } from '../../abi/ERC721';
+import { encodeFunctionData, decodeFunctionResult, formatEther } from 'viem';
 
 // Define a type for the multicall calls
 interface MulticallCall {
@@ -19,6 +20,7 @@ interface MulticallCall {
 interface ListingData {
   pairAddress: string;
   nftIds: readonly bigint[];
+  price: bigint; // Price to buy an NFT (inputAmount from getBuyNFTQuote)
 }
 
 @Component({
@@ -42,6 +44,10 @@ export class BrowseComponent implements OnInit {
   // Listings data
   erc721Listings = signal<string[]>([]);
   listingsData = signal<ListingData[]>([]);
+
+  // Token metadata
+  tokenName = signal<string>('');
+  tokenSymbol = signal<string>('');
 
   // Get the current chain ID from the wallet service
   get currentChainId(): ChainIdType {
@@ -140,34 +146,94 @@ export class BrowseComponent implements OnInit {
 
       // Get the ListingBook contract address for the current chain
       const listingBookAddress = CONTRACT_ADDRESSES[this.currentChainId].LISTING_BOOK as `0x${string}`;
+      // Get the Multicall contract address for the current chain
+      const multicallAddress = CONTRACT_ADDRESSES[this.currentChainId].MULTICALL as `0x${string}`;
 
       // Use token address of 0, start of 0, end of 0 as specified
       const tokenAddress = '0x0000000000000000000000000000000000000000' as `0x${string}`;
       const start = 0n;
       const end = 0n;
 
-      console.log('Fetching ERC721 listings for:', {
+      console.log('Fetching ERC721 listings and metadata for:', {
         collection: collectionAddress,
         token: tokenAddress,
         start,
         end,
-        listingBookAddress
+        listingBookAddress,
+        multicallAddress
       });
 
-      // Call the get721Listings function on the ListingBook contract
-      const listings = await publicClient.readContract({
-        address: listingBookAddress,
+      // Prepare the calls for Multicall to get name, symbol, and listings
+      const calls: MulticallCall[] = [
+        // Get token name
+        {
+          target: collectionAddress as `0x${string}`,
+          callData: encodeFunctionData({
+            abi: ERC721,
+            functionName: 'name'
+          })
+        },
+        // Get token symbol
+        {
+          target: collectionAddress as `0x${string}`,
+          callData: encodeFunctionData({
+            abi: ERC721,
+            functionName: 'symbol'
+          })
+        },
+        // Get listings
+        {
+          target: listingBookAddress,
+          callData: encodeFunctionData({
+            abi: ListingBook,
+            functionName: 'get721Listings',
+            args: [
+              collectionAddress as `0x${string}`,
+              tokenAddress,
+              start,
+              end
+            ]
+          })
+        }
+      ];
+
+      // Execute the Multicall
+      const result = await publicClient.readContract({
+        address: multicallAddress,
+        abi: Multicall,
+        functionName: 'aggregate' as any,
+        args: [calls as any]
+      }) as unknown;
+
+      // Extract the return data from the result
+      const [, returnData] = result as [bigint, `0x${string}`[]];
+
+      // Decode the name and symbol
+      const name = decodeFunctionResult({
+        abi: ERC721,
+        functionName: 'name',
+        data: returnData[0]
+      }) as string;
+
+      const symbol = decodeFunctionResult({
+        abi: ERC721,
+        functionName: 'symbol',
+        data: returnData[1]
+      }) as string;
+
+      // Decode the listings
+      const listings = decodeFunctionResult({
         abi: ListingBook,
         functionName: 'get721Listings',
-        args: [
-          collectionAddress as `0x${string}`,
-          tokenAddress,
-          start,
-          end
-        ]
+        data: returnData[2]
       }) as `0x${string}`[];
 
+      console.log('Token metadata:', { name, symbol });
       console.log('ERC721 listings:', listings);
+
+      // Update the token metadata signals
+      this.tokenName.set(name);
+      this.tokenSymbol.set(symbol);
 
       // Update the listings signal
       this.erc721Listings.set(listings as unknown as string[]);
@@ -177,7 +243,10 @@ export class BrowseComponent implements OnInit {
         await this.fetchNFTIdsForPairs(listings);
       }
     } catch (error) {
-      console.error('Error fetching ERC721 listings:', error);
+      console.error('Error fetching ERC721 listings and metadata:', error);
+      // Set default values in case of error
+      this.tokenName.set('Unknown Collection');
+      this.tokenSymbol.set('???');
     }
   }
 
@@ -196,21 +265,32 @@ export class BrowseComponent implements OnInit {
       // Get the Multicall contract address for the current chain
       const multicallAddress = CONTRACT_ADDRESSES[this.currentChainId].MULTICALL as `0x${string}`;
 
-      // Prepare the calls for Multicall
-      const calls: MulticallCall[] = pairAddresses.map(pairAddress => {
-        // Encode the getAllIds function call
-        const callData = encodeFunctionData({
-          abi: Pair721,
-          functionName: 'getAllIds'
+      // Prepare the calls for Multicall - for each pair, we need to get both getAllIds and getBuyNFTQuote
+      const calls: MulticallCall[] = [];
+
+      // For each pair, add two calls: one for getAllIds and one for getBuyNFTQuote
+      pairAddresses.forEach(pairAddress => {
+        // Add call for getAllIds
+        calls.push({
+          target: pairAddress,
+          callData: encodeFunctionData({
+            abi: Pair721,
+            functionName: 'getAllIds'
+          })
         });
 
-        return {
+        // Add call for getBuyNFTQuote with id=0 and quantity=1
+        calls.push({
           target: pairAddress,
-          callData
-        };
+          callData: encodeFunctionData({
+            abi: Pair721,
+            functionName: 'getBuyNFTQuote',
+            args: [0n, 1n] // id=0, quantity=1
+          })
+        });
       });
 
-      console.log('Fetching NFT IDs for pairs:', {
+      console.log('Fetching NFT IDs and quotes for pairs:', {
         pairAddresses,
         multicallAddress,
         callsCount: calls.length
@@ -227,35 +307,95 @@ export class BrowseComponent implements OnInit {
       // Extract the return data from the result
       const [, returnData] = result as [bigint, `0x${string}`[]];
 
-      // Process the results
+      // Process the results - for each pair, we have two results (getAllIds and getBuyNFTQuote)
       const listingsWithIds: ListingData[] = pairAddresses.map((pairAddress, index) => {
         try {
-          // Decode the result
-          const decodedResult = decodeFunctionResult({
+          // Calculate the indices for this pair's data in the returnData array
+          const idsIndex = index * 2; // getAllIds result
+          const quoteIndex = index * 2 + 1; // getBuyNFTQuote result
+
+          // Decode the getAllIds result
+          const nftIds = decodeFunctionResult({
             abi: Pair721,
             functionName: 'getAllIds',
-            data: returnData[index]
+            data: returnData[idsIndex]
           });
+
+          // Decode the getBuyNFTQuote result
+          const quoteResult = decodeFunctionResult({
+            abi: Pair721,
+            functionName: 'getBuyNFTQuote',
+            data: returnData[quoteIndex]
+          }) as [number, bigint, bigint, bigint, bigint, bigint]; // [error, newSpotPrice, newDelta, inputAmount, protocolFee, royaltyAmount]
+
+          // Extract the inputAmount (index 3 in the result array)
+          const inputAmount = quoteResult[3];
 
           return {
             pairAddress: pairAddress,
-            nftIds: decodedResult
+            nftIds: nftIds,
+            price: inputAmount
           };
         } catch (error) {
-          console.error(`Error decoding NFT IDs for pair ${pairAddress}:`, error);
+          console.error(`Error decoding data for pair ${pairAddress}:`, error);
           return {
             pairAddress: pairAddress,
-            nftIds: []
+            nftIds: [],
+            price: 0n
           };
         }
       });
 
-      console.log('Listings with NFT IDs:', listingsWithIds);
+      console.log('Listings with NFT IDs and prices:', listingsWithIds);
 
       // Update the listingsData signal
       this.listingsData.set(listingsWithIds);
     } catch (error) {
-      console.error('Error fetching NFT IDs for pairs:', error);
+      console.error('Error fetching NFT IDs and quotes for pairs:', error);
     }
+  }
+
+  /**
+   * Format a bigint price to a human-readable string with limited decimal places
+   * @param price The price as a bigint
+   * @returns Formatted price string
+   */
+  formatPrice(price: bigint): string {
+    try {
+      // Convert the bigint to a string with 18 decimal places (ETH format)
+      const ethPrice = formatEther(price);
+
+      // Parse the string to a number and limit to 6 decimal places
+      const numPrice = parseFloat(ethPrice);
+
+      // Format the number based on its size
+      if (numPrice < 0.000001 && numPrice > 0) {
+        // For very small numbers, use scientific notation
+        return numPrice.toExponential(2);
+      } else if (numPrice < 0.001) {
+        // For small numbers, show more decimal places
+        return numPrice.toFixed(6);
+      } else if (numPrice < 1) {
+        // For medium numbers, show fewer decimal places
+        return numPrice.toFixed(4);
+      } else {
+        // For larger numbers, show even fewer decimal places
+        return numPrice.toFixed(2);
+      }
+    } catch (error) {
+      console.error('Error formatting price:', error);
+      return '0.00';
+    }
+  }
+
+  /**
+   * Get the current token symbol from the wallet service
+   * @returns The token symbol for the current chain
+   */
+  getTokenSymbol(): string {
+    const chain = this.walletService.getCurrentChain();
+    if (!chain) return 'ETH'; // Default to ETH if no chain is available
+
+    return chain.nativeCurrency.symbol;
   }
 }

@@ -1,0 +1,88 @@
+<div class="min-h-screen bg-black flex items-center justify-center px-4 py-8">
+  <div class="max-w-md w-full bg-zinc-900 rounded-xl shadow-lg overflow-hidden md:max-w-2xl p-6 border border-zinc-800">
+    <div class="flex flex-col items-center justify-center space-y-4">
+      <div class="flex justify-between items-center w-full mb-4">
+        <h1 class="text-2xl font-bold text-white">Manage</h1>
+      </div>
+
+      @if (!walletService.isConnected()) {
+        <button
+          (click)="connectWallet()"
+          class="w-full bg-[var(--dark-sudo-purple)] hover:bg-[var(--sudo-purple-o50)] text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow-lg cursor-pointer">
+          Connect Wallet
+        </button>
+      } @else {
+        <!-- Display pair address if available -->
+        @if (address) {
+          <div class="w-full bg-zinc-800 rounded-lg p-4 mb-4">
+            <div class="flex justify-between items-center">
+              <div>
+                <h2 class="text-xl font-bold text-white">Pair Address</h2>
+                <p class="text-gray-400 break-all">{{ address }}</p>
+              </div>
+              <div class="bg-zinc-700 px-3 py-1 rounded-full text-sm text-white">
+                {{ label }}
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- Loading indicator -->
+        @if (isLoading()) {
+          <div class="w-full bg-zinc-800 rounded-lg p-4 mb-4">
+            <p class="text-white text-center">Loading NFT IDs...</p>
+          </div>
+        }
+
+        <!-- Error message -->
+        @if (errorMessage()) {
+          <div class="w-full bg-red-900/50 rounded-lg p-4 mb-4 border border-red-800">
+            <p class="text-red-200">{{ errorMessage() }}</p>
+          </div>
+        }
+
+        <!-- Display NFT IDs if available -->
+        @if (nftIds().length > 0) {
+          <div class="w-full mt-4">
+            <h3 class="text-lg font-semibold text-white mb-2">NFT IDs in Pair</h3>
+            <div class="bg-zinc-800 rounded-lg p-4">
+              <div class="grid grid-cols-3 gap-2">
+                @for (id of nftIds(); track id) {
+                  <div class="bg-zinc-700 rounded-lg p-2 text-center">
+                    <p class="text-white">{{ id.toString() }}</p>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Withdraw all NFTs button -->
+            <button
+              (click)="withdrawAllNFTs()"
+              [disabled]="isWithdrawing()"
+              class="w-full mt-4 bg-[var(--dark-sudo-purple)] hover:bg-[var(--sudo-purple-o50)] text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+              {{ isWithdrawing() ? 'Withdrawing...' : 'Withdraw all NFTs' }}
+            </button>
+
+            <!-- Withdrawal success message -->
+            @if (withdrawSuccess()) {
+              <div class="mt-4 p-3 bg-green-900/50 text-green-200 rounded-lg border border-green-700">
+                NFTs successfully withdrawn!
+              </div>
+            }
+
+            <!-- Withdrawal error message -->
+            @if (withdrawError()) {
+              <div class="mt-4 p-3 bg-red-900/50 text-red-200 rounded-lg border border-red-700">
+                {{ withdrawError() }}
+              </div>
+            }
+          </div>
+        } @else if (!isLoading() && !errorMessage()) {
+          <div class="w-full bg-zinc-800 rounded-lg p-4 mb-4">
+            <p class="text-white text-center">No NFT IDs found in this pair.</p>
+          </div>
+        }
+      }
+    </div>
+  </div>
+</div>

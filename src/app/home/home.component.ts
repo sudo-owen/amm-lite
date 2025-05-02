@@ -584,7 +584,7 @@ export class HomeComponent {
           1, // PoolType: TOKEN/NFT/TRADE
           0n, // Delta
           0n, // Fee
-          BigInt(this.startingPrice), // Spot price
+          BigInt(this.startingPrice) * BigInt(1e18), // Spot price times decimals scalar
           '0x0000000000000000000000000000000000000000' as `0x${string}`, // Property checker
           this.nftIds.split(',').map(id => BigInt(id.trim())), // Initial NFT IDs
           CONTRACT_ADDRESSES[this.currentChainId].LISTING_BOOK as `0x${string}`, // Hook address
@@ -608,7 +608,7 @@ export class HomeComponent {
             poolType: 1, // PoolType: TOKEN/NFT/TRADE
             delta: 0n, // Delta
             fee: 0n, // Fee
-            spotPrice: BigInt(this.startingPrice), // Spot price
+            spotPrice: BigInt(this.startingPrice) * BigInt(1e18), // Spot price times decimals scalar
             propertyChecker: '0x0000000000000000000000000000000000000000' as `0x${string}`, // Property checker
             initialNFTIDs: this.nftIds.split(',').map(id => BigInt(id.trim())), // Initial NFT IDs
             initialTokenBalance: 0n, // Initial token balance
