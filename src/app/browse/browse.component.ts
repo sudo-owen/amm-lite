@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { WalletService } from '../services/wallet.service';
+import { NFTService, TransactionStatus } from '../services/nft.service';
 import { CHAIN_ID, ChainIdType, CONTRACT_ADDRESSES } from '../services/address';
 import { ListingBook } from '../../abi/ListingBook';
 import { Pair721 } from '../../abi/Pair721';
@@ -34,6 +35,7 @@ interface ListingData {
 export class BrowseComponent implements OnInit {
   private route = inject(ActivatedRoute);
   walletService = inject(WalletService);
+  nftService = inject(NFTService);
 
   // Route parameters
   label: string | null = null;
@@ -414,65 +416,31 @@ export class BrowseComponent implements OnInit {
         return;
       }
 
-      // Get the wallet client
-      const walletClient = this.walletService.getWalletClient();
-      if (!walletClient) {
-        console.error('No wallet client available');
-        return;
-      }
-
-      // Get the wallet address
-      const walletAddress = this.walletService.walletAddress();
-      if (!walletAddress) {
-        console.error('No wallet address available');
-        return;
-      }
-
       // Set the listing as in buying state
       const updatedListings = this.listingsData().map(l =>
         l.pairAddress === listing.pairAddress ? { ...l, isBuying: true } : l
       );
       this.listingsData.set(updatedListings);
 
-      console.log('Buying NFT:', {
+      // Subscribe to transaction events
+      const statusSubscription = this.nftService.transactionStatus$.subscribe(status => {
+        console.log('Transaction status:', status);
+      });
+
+      // Call the NFT service to buy the NFT
+      const result = await this.nftService.buyNFT({
         pairAddress: listing.pairAddress,
-        nftId: listing.nftIds[0],
-        price: listing.price,
-        buyer: walletAddress
+        nftIds: listing.nftIds,
+        price: listing.price
       });
 
-      // Call swapTokenForSpecificNFTs on the pair contract
-      const hash = await walletClient.writeContract({
-        address: listing.pairAddress as `0x${string}`,
-        abi: Pair721,
-        functionName: 'swapTokenForSpecificNFTs',
-        args: [
-          [listing.nftIds[0]], // Array with the first NFT ID
-          listing.price, // maxExpectedTokenInput (the price)
-          walletAddress as `0x${string}`, // nftRecipient (the caller)
-          false, // isRouter
-          '0x0000000000000000000000000000000000000000' as `0x${string}` // routerCaller
-        ],
-        value: listing.price, // Send the price as the transaction value
-        chain: this.walletService.getCurrentChain(),
-        account: walletAddress as `0x${string}`
-      });
+      // Unsubscribe from the status updates
+      statusSubscription.unsubscribe();
 
-      console.log('Buy transaction hash:', hash);
-
-      // Wait for the transaction to be mined
-      const publicClient = this.walletService.getPublicClient();
-      if (publicClient) {
-        await publicClient.waitForTransactionReceipt({ hash });
-      }
-
-      // Refresh the listings to update the NFT IDs
-      if (this.address) {
+      // If the transaction was successful, refresh the listings
+      if (result.status === TransactionStatus.SUCCESS && this.address) {
         await this.fetchERC721Listings(this.address);
       }
-
-      // Update wallet balance
-      await this.walletService.fetchBalance();
     } catch (error) {
       console.error('Error buying NFT:', error);
     } finally {
@@ -481,6 +449,9 @@ export class BrowseComponent implements OnInit {
         l.pairAddress === listing.pairAddress ? { ...l, isBuying: false } : l
       );
       this.listingsData.set(updatedListings);
+
+      // Reset the transaction status in the service
+      this.nftService.resetTransactionStatus();
     }
   }
 }
