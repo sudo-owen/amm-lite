@@ -1,5 +1,5 @@
 <div class="min-h-screen bg-black flex items-center justify-center px-4 py-8">
-  <div class="max-w-md w-full bg-zinc-900 rounded-xl shadow-lg overflow-hidden md:max-w-2xl p-6 border border-zinc-800">
+  <div class="max-w-md w-full bg-zinc-900 rounded-xl shadow-lg overflow-hidden md:max-w-3xl lg:max-w-4xl p-6 border border-zinc-800">
     <div class="flex flex-col items-center justify-center space-y-4">
       <div class="flex justify-between items-center w-full mb-4">
         <h1 class="text-2xl font-bold text-white">Manage</h1>
@@ -44,97 +44,140 @@
         <!-- Display NFT IDs if available -->
         @if (nftIds().length > 0) {
           <div class="w-full mt-4">
-            <h3 class="text-lg font-semibold text-white mb-2">NFT IDs in Pair</h3>
+            <h3 class="text-lg font-semibold text-white mb-2">NFTs in Pair</h3>
             <div class="bg-zinc-800 rounded-lg p-4">
-              <div class="grid grid-cols-3 gap-2">
-                @for (id of nftIds(); track id) {
-                  <div class="bg-zinc-700 rounded-lg p-2 text-center">
-                    <p class="text-white">{{ id.toString() }}</p>
-                  </div>
-                }
-              </div>
-            </div>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                @for (nftData of nftDataList(); track nftData.id) {
+                  <div class="bg-zinc-700 rounded-lg p-4 flex flex-col">
+                    <div class="flex justify-between items-center mb-2">
+                      <p class="text-white font-semibold">ID: {{ nftData.id.toString() }}</p>
+                    </div>
 
-            <!-- Withdraw all NFTs button -->
-            <button
-              (click)="withdrawAllNFTs()"
-              [disabled]="isWithdrawing()"
-              class="w-full mt-4 bg-[var(--dark-sudo-purple)] hover:bg-[var(--sudo-purple-o50)] text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
-              {{ isWithdrawing() ? 'Withdrawing...' : 'Withdraw all NFTs' }}
-            </button>
-
-            <!-- Withdrawal success message -->
-            @if (withdrawSuccess()) {
-              <div class="mt-4 p-3 bg-green-900/50 text-green-200 rounded-lg border border-green-700">
-                NFTs successfully withdrawn!
-              </div>
-            }
-
-            <!-- Withdrawal error message -->
-            @if (withdrawError()) {
-              <div class="mt-4 p-3 bg-red-900/50 text-red-200 rounded-lg border border-red-700">
-                {{ withdrawError() }}
-              </div>
-            }
-
-            <!-- Buy NFT section -->
-            <div class="mt-6 pt-6 border-t border-zinc-700">
-              <h3 class="text-lg font-semibold text-white mb-2">Buy NFT</h3>
-
-              <div class="bg-zinc-800 rounded-lg p-4 mb-4">
-                <div class="flex justify-between items-center mb-3">
-                  <p class="text-white">Current Price:</p>
-                  <div class="bg-zinc-700 px-3 py-1 rounded-full text-sm text-white">
-                    {{ formatPrice(nftPrice()) }} {{ getTokenSymbol() }}
-                  </div>
-                </div>
-
-                <!-- NFT ID Dropdown -->
-                <div class="mt-2">
-                  <label for="nftIdSelect" class="block text-sm font-medium text-gray-400 mb-1">Select NFT ID:</label>
-                  <select
-                    id="nftIdSelect"
-                    [(ngModel)]="selectedNftId"
-                    class="w-full bg-zinc-700 text-white rounded-lg p-2 border border-zinc-600 focus:outline-none focus:ring-2 focus:ring-[var(--sudo-purple-o50)]">
-                    @for (id of nftIds(); track id) {
-                      <option [ngValue]="id">{{ id.toString() }}</option>
+                    <!-- Loading state -->
+                    @if (nftData.isLoadingMetadata) {
+                      <div class="flex items-center justify-center h-40 bg-zinc-800 rounded-lg">
+                        <div class="flex flex-col items-center">
+                          <svg class="animate-spin h-8 w-8 text-white mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          <p class="text-gray-400 text-sm">Loading metadata...</p>
+                        </div>
+                      </div>
                     }
-                  </select>
-                </div>
-              </div>
 
-              <!-- Buy NFT button -->
-              <button
-                (click)="buyNFT()"
-                [disabled]="isBuying() || nftIds().length === 0 || selectedNftId() === null"
-                class="w-full bg-[var(--dark-sudo-purple)] hover:bg-[var(--sudo-purple-o50)] text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
-                @if (isBuying()) {
-                  <span class="flex items-center justify-center">
-                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Buying...
-                  </span>
-                } @else {
-                  Buy NFT
+                    <!-- Error state -->
+                    @else if (nftData.metadataError) {
+                      <div class="flex items-center justify-center h-40 bg-zinc-800 rounded-lg">
+                        <div class="text-center">
+                          <p class="text-red-400 mb-1">{{ nftData.metadataError }}</p>
+                          <p class="text-gray-400 text-sm">ID: {{ nftData.id.toString() }}</p>
+                        </div>
+                      </div>
+                    }
+
+                    <!-- Metadata display -->
+                    @else if (nftData.metadata) {
+                      <div class="flex flex-col">
+                        <!-- NFT Name -->
+                        <h4 class="text-white text-lg font-semibold mb-2">{{ nftData.metadata.name }}</h4>
+
+                        <!-- NFT Image -->
+                        @if (nftData.metadata.image) {
+                          <div class="relative aspect-square w-full mb-3 overflow-hidden rounded-lg">
+                            <img
+                              [src]="nftData.metadata.image"
+                              alt="{{ nftData.metadata.name }}"
+                              class="object-cover w-full h-full"
+                            />
+                          </div>
+                        }
+
+                        <!-- NFT Attributes -->
+                        @if (nftData.metadata.attributes && nftData.metadata.attributes.length > 0) {
+                          <div class="mt-2">
+                            <p class="text-gray-400 text-sm mb-1">Attributes:</p>
+                            <div class="grid grid-cols-2 gap-1">
+                              @for (attr of nftData.metadata.attributes; track attr.trait_type) {
+                                <div class="bg-zinc-800 p-1 rounded text-xs">
+                                  <div class="text-gray-400">{{ attr.trait_type }}:</div>
+                                  <div class="text-white ml-1">{{ attr.value }}</div>
+                                </div>
+                              }
+                            </div>
+                          </div>
+                        }
+                      </div>
+                    }
+
+                    <!-- No metadata state -->
+                    @else {
+                      <div class="flex items-center justify-center h-40 bg-zinc-800 rounded-lg">
+                        <p class="text-gray-400">No metadata available</p>
+                      </div>
+                    }
+
+                    <!-- Buy button for this specific NFT -->
+                    <button
+                      (click)="buyNFT(nftData.id)"
+                      [disabled]="isBuying()"
+                      class="w-full mt-3 bg-[var(--dark-sudo-purple)] hover:bg-[var(--sudo-purple-o50)] text-white font-bold py-2 px-4 rounded-lg transition duration-200 shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                      @if (isBuying() && selectedNftId() === nftData.id) {
+                        <span class="flex items-center justify-center">
+                          <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Buying...
+                        </span>
+                      } @else {
+                        Buy for {{ formatPrice(nftPrice()) }} {{ getTokenSymbol() }}
+                      }
+                    </button>
+                  </div>
                 }
-              </button>
-
-              <!-- Buy success message -->
-              @if (buySuccess()) {
-                <div class="mt-4 p-3 bg-green-900/50 text-green-200 rounded-lg border border-green-700">
-                  NFT successfully purchased!
-                </div>
-              }
-
-              <!-- Buy error message -->
-              @if (buyError()) {
-                <div class="mt-4 p-3 bg-red-900/50 text-red-200 rounded-lg border border-red-700">
-                  {{ buyError() }}
-                </div>
-              }
+              </div>
             </div>
+
+            <!-- Withdraw all NFTs section - only visible to pool owner -->
+            @if (isPoolOwner()) {
+              <div class="mt-4">
+                <button
+                  (click)="withdrawAllNFTs()"
+                  [disabled]="isWithdrawing()"
+                  class="w-full bg-[var(--dark-sudo-purple)] hover:bg-[var(--sudo-purple-o50)] text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                  {{ isWithdrawing() ? 'Withdrawing...' : 'Withdraw all NFTs' }}
+                </button>
+
+                <!-- Withdrawal success message -->
+                @if (withdrawSuccess()) {
+                  <div class="mt-4 p-3 bg-green-900/50 text-green-200 rounded-lg border border-green-700">
+                    NFTs successfully withdrawn!
+                  </div>
+                }
+
+                <!-- Withdrawal error message -->
+                @if (withdrawError()) {
+                  <div class="mt-4 p-3 bg-red-900/50 text-red-200 rounded-lg border border-red-700">
+                    {{ withdrawError() }}
+                  </div>
+                }
+              </div>
+            }
+
+            <!-- Buy success message -->
+            @if (buySuccess()) {
+              <div class="mt-4 p-3 bg-green-900/50 text-green-200 rounded-lg border border-green-700">
+                NFT successfully purchased!
+              </div>
+            }
+
+            <!-- Buy error message -->
+            @if (buyError()) {
+              <div class="mt-4 p-3 bg-red-900/50 text-red-200 rounded-lg border border-red-700">
+                {{ buyError() }}
+              </div>
+            }
           </div>
         } @else if (!isLoading() && !errorMessage()) {
           <div class="w-full bg-zinc-800 rounded-lg p-4 mb-4">

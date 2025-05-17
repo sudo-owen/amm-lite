@@ -17,6 +17,7 @@ interface ContractAddressesType {
   VERY_FAST_ROUTER_V2: string;
   MULTICALL: string;
   LISTING_BOOK: string;
+  KAMI?: string;
 }
 
 // Define the contract addresses record type
@@ -33,6 +34,7 @@ export const CONTRACT_ADDRESSES: ContractAddressesRecord = {
     VERY_FAST_ROUTER_V2: '0x1A72CB0Ab23aaF24472855EF30b5714A1a87046B',
     MULTICALL: '0x14521bbB801ac766568d7CE82cFB2968b98B4Ca3',
     LISTING_BOOK: '0x048000C86B685e6eB69f6FcB0B1a5e7E5C80b130',
+    KAMI: '0x5d4376b62fa8ac16dfabe6a9861e11c33a48c677'
   },
   [CHAIN_ID.ZAAR]: {
     PAIR_FACTORY_V2_HOOKS: '0x13ea00baE2f9B4e50d5986e38D6744dE6741842c',

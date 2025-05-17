@@ -1,0 +1,42 @@
+<div class="min-h-screen bg-black flex items-center justify-center px-4 py-8">
+  <div class="max-w-md w-full bg-zinc-900 rounded-xl shadow-lg overflow-hidden md:max-w-2xl p-6 border border-zinc-800">
+    <div class="flex flex-col items-center justify-center space-y-4">
+      <h1 class="text-2xl font-bold text-white mb-4">KAMI NFT #{{ id }}</h1>
+      
+      @if (!walletService.isConnected()) {
+        <p class="text-zinc-400 mb-4">Please connect your wallet to view this KAMI NFT.</p>
+        <button
+          (click)="connectWallet()"
+          class="w-full bg-[var(--dark-sudo-purple)] hover:bg-[var(--sudo-purple-o50)] text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow-lg cursor-pointer">
+          Connect Wallet
+        </button>
+      } @else if (isWrongNetwork()) {
+        <div class="w-full bg-red-900/50 rounded-lg p-4 mb-4 border border-red-700">
+          <p class="text-red-200">{{ errorMessage() }}</p>
+        </div>
+        <button
+          (click)="disconnectWallet()"
+          class="w-full bg-zinc-700 hover:bg-zinc-600 text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow-lg cursor-pointer">
+          Disconnect Wallet
+        </button>
+      } @else if (isLoading()) {
+        <div class="flex items-center justify-center p-8">
+          <svg class="animate-spin h-8 w-8 text-[var(--sudo-purple)]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <p class="ml-3 text-zinc-400">Loading KAMI NFT information...</p>
+        </div>
+      } @else if (errorMessage()) {
+        <div class="w-full bg-red-900/50 rounded-lg p-4 mb-4 border border-red-700">
+          <p class="text-red-200">{{ errorMessage() }}</p>
+        </div>
+        <button
+          (click)="connectWallet()"
+          class="w-full bg-[var(--dark-sudo-purple)] hover:bg-[var(--sudo-purple-o50)] text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow-lg cursor-pointer">
+          Try Again
+        </button>
+      }
+    </div>
+  </div>
+</div>
